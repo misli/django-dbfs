@@ -34,14 +34,17 @@ INSTALLED_APPS = [
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'dbfs_test',
-        'USER': 'root',
+        'ENGINE': 'django.db.backends.{}'.format(os.environ.get('DATABASE_ENGINE', 'mysql')),
+        'NAME': os.environ.get('DATABASE_NAME', 'dbfs_test'),
+        'USER': os.environ.get('DATABASE_USER', 'root'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWOD', ''),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
+        } if os.environ.get('DATABASE_ENGINE', 'mysql') == 'mysql' else {}
     }
 }
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOGGING = {
     'version': 1,
