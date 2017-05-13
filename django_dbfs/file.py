@@ -1,6 +1,10 @@
 from __future__ import unicode_literals
 
+import errno
+import os
+
 from django.conf import settings
+from fuse import FuseOSError
 
 from .models import Block
 
@@ -22,7 +26,11 @@ class OpenFile(object):
         self.node = node
         self.flags = flags
 
-        self.offset = 0
+        if self.flags & os.O_APPEND:
+            self.offset = self.node.inode.size
+        else:
+            self.offset = 0
+
         self._blocks = {}
         self._dirty_blocks = set()
 
@@ -52,6 +60,8 @@ class OpenFile(object):
         self.offset = offset
 
     def read(self, length):
+        if self.flags & os.O_WRONLY:
+            raise FuseOSError(errno.EACCES)
         data = b''
         length = min(self.node.inode.size - self.offset, length)
         while length:
@@ -64,6 +74,8 @@ class OpenFile(object):
         return data
 
     def write(self, buf):
+        if self.flags == os.O_RDONLY:
+            raise FuseOSError(errno.EACCES)
         length = len(buf)
         while buf:
             block_offset = self.offset & BLOCK_MASK
@@ -83,6 +95,8 @@ class OpenFile(object):
             self.node.inode.save_size()
 
     def truncate(self, length):
+        if self.flags == os.O_RDONLY:
+            raise FuseOSError(errno.EACCES)
         self.node.inode.size = length
         self.node.inode.save_size()
 
