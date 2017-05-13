@@ -255,13 +255,22 @@ class DbFs(Operations):
 
     def open(self, path, flags):
         context = fuse_get_context()
-        node = self._resolve(path, context)
+        inode = self._resolve(path, context).inode
         if flags == os.O_RDONLY:
-            self._access(node.inode, os.R_OK, context)
+            self._access(inode, os.R_OK, context)
         else:
-            self._access(node.inode, os.W_OK, context)
+            self._access(inode, os.W_OK, context)
+        return self._open(inode, flags)
+
+    def opendir(self, path):
+        context = fuse_get_context()
+        inode = self._resolve(path, context).inode
+        self._access(inode, os.X_OK, context)
+        return self._open(inode, os.O_RDONLY)
+
+    def _open(self, inode, flags):
         fh = next(self._fh_counter)
-        self._files[fh] = OpenFile(node, flags)
+        self._files[fh] = OpenFile(inode, flags)
         return fh
 
     def read(self, path, length, offset, fh):
@@ -287,6 +296,8 @@ class DbFs(Operations):
     def release(self, path, fh):
         self._resolve_file(fh).close()
         del self._files[fh]
+
+    releasedir = release
 
     @transaction.atomic
     def fsync(self, path, fdatasync, fh):
